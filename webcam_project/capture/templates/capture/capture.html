@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Face Capture</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #ff6a00;
+            --bg: #0f0f0f;
+            --text: #f1f1f1;
+            --error: #ff4d4d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 26px;
+            margin-bottom: 24px;
+            color: var(--primary);
+        }
+
+        .camera-box {
+            border: 3px solid var(--primary);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(255, 106, 0, 0.2);
+            background: #1a1a1a;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .btn {
+            margin-top: 25px;
+            background-color: var(--primary);
+            border: none;
+            padding: 14px 30px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.25s ease;
+        }
+
+        .btn:hover {
+            background-color: #e65a00;
+        }
+
+        .error {
+            margin-top: 20px;
+            color: var(--error);
+            font-size: 15px;
+        }
+
+        footer {
+            margin-top: 40px;
+            font-size: 13px;
+            color: #999;
+        }
+
+        @media (min-width: 600px) {
+            video {
+                width: 600px;
+            }
+        }
+
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎥 Capture Your Face to Start</h1>
+
+    <div class="camera-box">
+        <video id="video" autoplay></video>
+    </div>
+
+    <button class="btn" id="capture">📸 Capture Photo</button>
+
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <form id="photoForm" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="image" id="imageInput" style="display: none;">
+    </form>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <footer>
+        &copy; {{ now|default:"2025" }} Face Proctoring System
+    </footer>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture');
+
+        // Ask for webcam access
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                alert('Camera access denied or not available.');
+            });
+
+        // Capture and send image
+        captureBtn.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                formData.append('image', file);
+
+                fetch('', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        return response.text().then(html => {
+                            document.open();
+                            document.write(html);
+                            document.close();
+                        });
+                    }
+                })
+                .catch(error => {
+                    alert('Upload failed: ' + error.message);
+                });
+            }, 'image/jpeg');
+        });
+    </script>
+</body>
+</html>
